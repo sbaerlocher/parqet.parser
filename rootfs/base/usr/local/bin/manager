@@ -1,0 +1,416 @@
+#!/bin/bash
+
+# Script Description: Automate Ansible operations like initialization, connection checks, playbook execution, and password injection.
+# Author: Simon Bärlocher
+# Date: 2024-10-30
+
+set -e  # Exit immediately if a command exits with a non-zero status.
+
+DEBUG=false
+
+# Debug logging
+log_debug() {
+  if [ "$DEBUG" = true ]; then
+    printf "\e[34mDEBUG: %s\e[0m\n" "$1"
+  fi
+}
+
+# Error logging
+log_error() {
+  printf "\e[31mERROR: %s\e[0m\n" "$1"
+}
+
+# Success logging
+log_success() {
+  printf "\e[32mSUCCESS: %s\e[0m\n" "$1"
+}
+
+# Validate or prompt for file
+validate_or_prompt_file() {
+  local file="$1"
+  local prompt_message="$2"
+  local search_dir="$3"
+  local search_type="$4"
+  local file_pattern="$5"
+
+  if [ -f "$file" ]; then
+    echo "$file"
+    return 0
+  fi
+
+  local selected_file
+  selected_file=$(select_item_from_directory "$prompt_message" "$search_dir" "$search_type" "$file_pattern")
+
+  if [ -z "$selected_file" ]; then
+    log_error "No file selected. Aborting."
+    exit 1
+  fi
+
+  echo "$selected_file"
+  return 0
+}
+
+# Select item from directory
+select_item_from_directory() {
+  local prompt_message="$1"
+  local search_dir="$2"
+  local search_type="$3"
+  local file_pattern="$4"
+
+  local items
+  if [[ "$search_type" == "d" ]]; then
+    items=($(find "$search_dir" -mindepth 1 -maxdepth 1 -type d -name "$file_pattern"))
+  elif [[ "$search_type" == "f" ]]; then
+    items=($(find "$search_dir" -type f -name "$file_pattern"))
+  else
+    log_error "Invalid search type: $search_type. Use 'f' for files or 'd' for directories."
+    return 1
+  fi
+
+  if [ ${#items[@]} -eq 0 ]; then
+    log_error "No matching items found in $search_dir."
+    return 1
+  fi
+
+  PS3="$prompt_message "
+  select item in "${items[@]}"; do
+    if [[ -n "$item" ]]; then
+      echo "$item"
+      return 0
+    fi
+  done
+}
+
+# Load access variables
+load_access_file() {
+  local access_file="$1"
+  log_debug "Loading access file: $access_file"
+  if [ ! -f "$access_file" ]; then
+    log_error "Access file not found: $access_file"
+    exit 1
+  fi
+
+  export VMWARE_HOST=$(grep -E '^ansible_vmware_host:' "$access_file" | awk '{print $2}')
+  export VMWARE_USERNAME=$(grep -E '^ansible_vmware_user:' "$access_file" | awk '{print $2}' | tr -d '"')
+  export VMWARE_USER=$(grep -E '^ansible_vmware_user:' "$access_file" | awk '{print $2}' | tr -d '"')
+  export VMWARE_PASSWORD=$(grep -E '^ansible_vmware_password:' "$access_file" | awk '{print $2}' | tr -d '"')
+  export GOVC_URL=$(grep -E '^ansible_vmware_host:' "$access_file" | awk '{print $2}')
+  export GOVC_USERNAME=$(grep -E '^ansible_vmware_user:' "$access_file" | awk '{print $2}' | tr -d '"')
+  export GOVC_PASSWORD=$(grep -E '^ansible_vmware_password:' "$access_file" | awk '{print $2}' | tr -d '"')
+
+  if [ -z "$VMWARE_HOST" ] || [ -z "$VMWARE_USERNAME" ] || [ -z "$VMWARE_PASSWORD" ]; then
+    log_error "Required variables not found in access file: $access_file"
+    exit 1
+  fi
+
+  log_debug "Exported variables: VMWARE_HOST=$VMWARE_HOST, VMWARE_USERNAME=$VMWARE_USERNAME"
+}
+
+# Initialize Ansible requirements
+init_ansible() {
+  local requirements_file=""
+  local force=""
+
+  while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --requirements-file)
+        requirements_file="$2"
+        shift; shift
+        ;;
+      --force)
+        force="--force"
+        shift
+        ;;
+      *)
+        usage
+        ;;
+    esac
+  done
+
+  log_debug "ansible-galaxy install -r $requirements_file $force; ansible-galaxy collection install -r $requirements_file $force"
+
+  if [ -z "$requirements_file" ]; then
+    if [ -f "requirements.yml" ]; then
+      requirements_file="requirements.yml"
+    else
+      log_error "No requirements.yml file specified and none found in the current directory."
+      exit 1
+    fi
+  fi
+
+  if [ ! -f "$requirements_file" ]; then
+    log_error "File $requirements_file does not exist."
+    exit 1
+  fi
+
+  echo "Installing Ansible roles and collections from $requirements_file..."
+  ansible-galaxy install -r "$requirements_file" $force
+  ansible-galaxy collection install -r "$requirements_file" $force
+
+  if [ $? -ne 0 ]; then
+    log_error "Failed to install roles and collections from $requirements_file"
+    exit 1
+  else
+    log_success "Successfully installed roles and collections from $requirements_file"
+  fi
+}
+
+# Check connection
+check_connection() {
+  local inventory="./inventory"
+  local access_file=""
+
+  while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --access-file)
+        access_file="$2"
+        shift; shift
+        ;;
+      *)
+        usage
+        ;;
+    esac
+  done
+
+  log_debug "Checking connection with inventory: $inventory"
+  access_file=$(validate_or_prompt_file "$access_file" "Select an access file:" "variables/access" "f" "*.yml")
+
+  load_access_file "$access_file"
+
+  log_debug "Running connection check playbook."
+  ansible-playbook -i "$inventory" playbooks/check_connection.yml --extra-vars "@$access_file" && \
+  log_success "Connection check succeeded." || \
+  log_error "Connection check failed."
+}
+
+# Run an Ansible playbook
+run_ansible_playbook() {
+  local inventory="./inventory"
+  local access_file=""
+  local options=""
+
+  while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --access-file)
+        access_file="$2"
+        shift; shift
+        ;;
+      --check|--diff|-v|-vv|-vvv)
+        options+=" $1"
+        shift
+        ;;
+      *)
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
+  log_debug "Running playbook with inventory: $inventory"
+  access_file=$(validate_or_prompt_file "$access_file" "Select an access file:" "variables/access" "f" "*.yml")
+
+  load_access_file "$access_file"
+
+  local playbooks=($(find playbooks -type f -name "*.yml" | grep -v 'check_connection.yml'))
+  if [ ${#playbooks[@]} -eq 0 ]; then
+    log_error "No playbooks found in the playbooks directory."
+    exit 1
+  fi
+
+  log_debug "Available playbooks: ${playbooks[*]}"
+  PS3="Select a playbook to run: "
+  select playbook in "${playbooks[@]}"; do
+    if [ -n "$playbook" ]; then
+      log_debug "Selected playbook: $playbook with options: $options"
+      ansible-playbook -i "$inventory" "$playbook" $options --extra-vars "@$access_file" && \
+      log_success "Playbook run succeeded." || \
+      log_error "Playbook run failed."
+      break
+    else
+      log_error "Invalid selection."
+    fi
+  done
+}
+
+# Inject passwords into a .dist file
+inject_passwords() {
+  local dist_file=""
+
+  while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      *)
+        dist_file="$1"
+        shift
+        ;;
+    esac
+  done
+
+  log_debug "Checking if a valid .dist file is provided."
+
+  dist_file=$(validate_or_prompt_file "$dist_file" "Select a .dist file to inject passwords:" "variables" "f" "*.dist" | sed 's/\033\[[0-9;]*m//g')
+
+  if [[ ! -f "$dist_file" ]]; then
+    log_error "The file $dist_file does not exist or could not be found."
+    return 1
+  fi
+
+  log_debug "Injecting passwords into: $dist_file"
+
+  local output_file="${dist_file%.dist}"
+
+  op inject -i "$dist_file" -o "$output_file" && \
+  log_success "Passwords injected and saved to $output_file." || \
+  log_error "Failed to inject passwords into $dist_file."
+
+  log_debug "Reading the ansible_op_vault from $output_file."
+  local vault_name
+  vault_name=$(grep 'ansible_op_vault:' "$output_file" | sed -E 's/.*ansible_op_vault: "(.*)".*/\1/' | sed 's/\033\[[0-9;]*m//g')
+
+  if [[ -z "$vault_name" ]]; then
+    log_error "No ansible_op_vault entry found in $output_file."
+    return 1
+  fi
+
+  log_debug "Vault name extracted: $vault_name"
+
+  local esxi_list
+  esxi_list=$(op item list --vault "$vault_name" --categories Login --format json | jq -c '[.[] | {title, id}]')
+
+  log_debug "Found ESXi items: $esxi_list"
+
+  local esxi_yaml="ansible_esxi_list:\n"
+
+  for esxi_item in $(echo "$esxi_list" | jq -r '.[] | @base64'); do
+    _jq() {
+      echo "${esxi_item}" | base64 --decode | jq -r "${1}"
+    }
+    local item_id=$(_jq '.id')
+    local item_title=$(_jq '.title')
+
+    local item_details
+    item_details=$(op item get "$item_id" --format json)
+    fqdn=$(echo "$item_details" | jq -r '.fields[] | select(.label == "FQDN" or .label == "hostname").value // empty')
+    username=$(echo "$item_details" | jq -r '.fields[] | select(.label == "username").value // empty')
+
+    local password
+    password=$(echo "$item_details" | jq -r '.fields[] | select(.label == "password").value // empty')
+    if [[ -n "$fqdn" && -n "$username" && -n "$password" ]]; then
+      esxi_yaml+="  - title: \"$item_title\"\n"
+      esxi_yaml+="    fqdn: \"$fqdn\"\n"
+      esxi_yaml+="    username: \"$username\"\n"
+      esxi_yaml+="    password: \"$password\"\n"
+    fi
+  done
+
+  log_debug "Appending ansible_esxi_list to the output file."
+  echo -e "\n$esxi_yaml" >> "$output_file"
+
+  log_success "ansible_esxi_list added to $output_file."
+}
+
+# Main dispatcher
+main() {
+  local action="$1"; shift
+
+  case $action in
+    init)
+      log_debug "Action: init"
+      init_ansible "$@"
+      ;;
+    check_connection)
+      log_debug "Action: check_connection"
+      check_connection "$@"
+      ;;
+    playbook)
+      log_debug "Action: playbook"
+      run_ansible_playbook "$@"
+      ;;
+    inject_passwords)
+      log_debug "Action: inject_passwords"
+      inject_passwords "$@"
+      ;;
+    *)
+      log_error "Invalid action: $action"
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+# Usage instructions
+usage() {
+  cat <<EOF
+Usage: $0 [--debug] <action> [options]
+
+Description:
+  This script automates common Ansible operations such as initialization, connection checks, playbook execution, and password injection.
+
+Global Options:
+  --debug                Enable debug mode to display detailed logs for troubleshooting.
+
+Actions:
+  init                   Initialize Ansible roles and collections based on a requirements file.
+    Options:
+      --requirements-file <file>  Specify the requirements file to use (default: requirements.yml).
+      --force                    Force reinstallation of roles and collections.
+
+  check_connection       Verify connectivity using an Ansible playbook.
+    Options:
+      --access-file <file>       Specify the access file containing Ansible variables (prompted if not provided).
+
+  playbook               Execute an Ansible playbook.
+    Options:
+      --access-file <file>       Specify the access file containing Ansible variables (prompted if not provided).
+      --check                    Run the playbook in check mode to preview changes.
+      --diff                     Show the differences between the current state and the desired state.
+      -v, -vv, -vvv              Set verbosity level for Ansible output.
+
+  inject_passwords       Inject secrets into a .dist file using the 1Password CLI.
+    Options:
+      <file>                     The .dist file to inject secrets into.
+
+Examples:
+  Initialize Ansible requirements:
+    $0 init --requirements-file requirements.yml
+
+  Check connection with a specified access file:
+    $0 check_connection --access-file variables/access/example.yml
+
+  Run an Ansible playbook in check mode with verbosity:
+    $0 playbook --access-file variables/access/example.yml --check -vv
+
+  Inject passwords into a .dist file:
+    $0 inject_passwords secrets.dist
+
+  Run in debug mode to display detailed logs:
+    $0 --debug playbook --access-file variables/access/example.yml --check
+EOF
+}
+
+# Enable debug mode if --debug is passed
+if [[ "$1" == "--debug" ]]; then
+  DEBUG=true
+  shift
+fi
+
+main "$@"

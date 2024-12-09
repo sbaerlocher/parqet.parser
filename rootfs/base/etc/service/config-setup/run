@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+
+LOCK_FILE="/etc/service/config-setup/.lock"
+SLEEP_DURATION=43200  # Sleep duration of 12 hours
+
+# Create a lock file after successful setup
+touch "$LOCK_FILE"
+echo "Config setup completed. Entering sleep mode."
+
+# Enter sleep mode
+while true; do
+    sleep $SLEEP_DURATION
+done

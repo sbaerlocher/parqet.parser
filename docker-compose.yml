@@ -1,0 +1,40 @@
+---
+services:
+  parser:
+    build:
+      context: .
+      args:
+        DDE_UID: ${DDE_UID:-1000}
+        DDE_GID: ${DDE_GID:-1000}
+      target: python-env
+    working_dir: ${PWD}
+    environment:
+      - PROJECT_DIR=${PWD}
+    volumes:
+      - ${PWD}:${PWD}
+    networks:
+      - default
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep runsvdir || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    cap_add:
+      - SETGID
+      - SETPCAP
+      - SETUID
+      - CAP_CHOWN
+      - SYS_ADMIN
+    cap_drop:
+      - ALL
+
+networks:
+  default:
+    name: dde
+    external: true
+
+volumes:
+  config_volume:
+    driver: local
