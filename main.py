@@ -1,91 +1,127 @@
 import os
+from lib.brokers.n26 import N26Broker
+from lib.brokers.base_broker import BaseBroker
+from lib.brokers.kasparund import KasparundBroker
+from lib.brokers.liberty import LibertyBroker
+from lib.brokers.relai import RelaiBroker
+from lib.brokers.saxo import SaxoBroker
+from lib.brokers.selma import SelmaBroker
+from lib.brokers.terzo import TerzoBroker
+from lib.common.utilities import write_to_csv
+from lib.common.logging import configure_logging
 import logging
-import pandas as pd
-from lib.extractor import extract_transaction_data, extract_csv_data
-from lib.utilities import setup_logging, load_config
 
-class FileProcessor:
-    def __init__(self, output_folder):
-        self.output_folder = output_folder
+def process_file(file_path: str, brokers: list) -> None:
+    """
+    Processes a single file, including broker detection, transaction extraction,
+    processing, and saving results.
 
-    def process_file(self, data, data_type, broker_file_name, portfolio_number):
-        if data_type in data and data[data_type]:
-            file_path = os.path.join(self.output_folder, f"{broker_file_name}_{portfolio_number}_{data_type}.csv")
-            write_mode = "a" if os.path.exists(file_path) else "w"
-            header = not os.path.exists(file_path)
-            pd.DataFrame(data[data_type]).to_csv(file_path, mode=write_mode, index=False, sep=';', header=header)
-            logging.info(f"{data_type.capitalize()} wurden erfolgreich in {file_path} gespeichert.")
+    :param file_path: Path to the file to process.
+    :param brokers: List of supported broker objects.
+    """
+    logger = logging.getLogger("process_file")
 
-class OutputCleaner:
-    @staticmethod
-    def clear_output_folder(output_folder):
-        if os.path.exists(output_folder):
-            for file in os.listdir(output_folder):
-                file_path = os.path.join(output_folder, file)
-                try:
-                    if os.path.isfile(file_path):
-                        os.unlink(file_path)
-                        logging.info(f"Gelöschte Datei: {file_path}")
-                except Exception as e:
-                    logging.error(f"Fehler beim Löschen der Datei {file_path}: {e}")
+    try:
+        logger.debug(f"Starting processing for file: {file_path}")
 
-class PDFProcessor:
-    def __init__(self, config, file_processor):
-        self.config = config
-        self.file_processor = file_processor
-
-    def process(self, pdf_file):
-        data = extract_transaction_data(pdf_file, self.config)
-        if not data:
+        # Detect broker
+        broker = next((b for b in brokers if b.detect(file_path)), None)
+        if not broker:
+            logger.warning(f"No matching broker found for file {file_path}.")
             return
 
-        broker_file_name = data.get("broker", "unknown_broker").replace(" ", "_").lower()
-        portfolio_number = data.get("portfolio_number", "unknown_portfolio").replace(" ", "_").lower()
+        logger.debug(f"Detected broker: {broker.__class__.__name__} for file {file_path}")
+        logger.info(f"Processing file with broker: {broker.__class__.__name__}")
 
-        for data_type in ["trades", "cash_transfers", "interest", "dividends", "fees"]:
-            self.file_processor.process_file(data, data_type, broker_file_name, portfolio_number)
+        # Extract transactions
+        transactions_data = broker.extract_transactions(file_path)
 
-class CSVProcessor:
-    def __init__(self, config, file_processor):
-        self.config = config
-        self.file_processor = file_processor
-
-    def process(self, csv_file):
-        data = extract_csv_data(csv_file, self.config)
-        if not data:
+        # Ensure transactions_data is a dictionary
+        if not isinstance(transactions_data, dict):
+            logger.error(f"Unexpected type for transactions_data: {type(transactions_data)}. Skipping file {file_path}.")
             return
 
-        broker_file_name = data.get("broker", "unknown_broker").replace(" ", "_").lower()
-        portfolio_number = data.get("portfolio_number", "unknown_portfolio").replace(" ", "_").lower()
+        transactions = transactions_data
 
-        for data_type in ["trades", "cash_transfers", "interest", "dividends", "fees"]:
-            self.file_processor.process_file(data, data_type, broker_file_name, portfolio_number)
+        logger.debug(f"Extracted transactions: {transactions} from file {file_path}")
 
-def main():
-    setup_logging()
+        # Process transactions
+        processed_data = broker.process_transactions(transactions, file_path)
+        if not processed_data:
+            logger.warning(f"No processed data for {file_path}. Skipping...")
+            return
+        logger.debug(f"Successfully processed transactions for {broker.__class__.__name__} from file {file_path}.")
 
-    config = load_config()
+        # Save results
+        save_results(processed_data, broker, file_path)
 
-    input_folder = "./input"
-    output_folder = "./output"
+        # Move and rename file after successful processing if it is a PDF
+        if file_path.lower().endswith(".pdf"):
+                broker.move_and_rename_file(file_path, transactions)
 
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    else:
-        OutputCleaner.clear_output_folder(output_folder)
+    except Exception as e:
+        logger.error(f"An error occurred while processing {file_path}: {e}", exc_info=True)
 
-    file_processor = FileProcessor(output_folder)
-    pdf_processor = PDFProcessor(config, file_processor)
-    csv_processor = CSVProcessor(config, file_processor)
+def save_results(processed_data: dict, broker: BaseBroker, file_path: str) -> None:
+    """
+    Saves processed data to output files.
 
-    input_files = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if f.endswith(".pdf") or f.endswith(".csv")]
-    logging.info(f"Gefundene Dateien: {input_files}")
+    :param processed_data: Processed data categorized by type.
+    :param broker: Broker object used for processing.
+    :param file_path: Original file path for naming output files.
+    """
+    logger = logging.getLogger("save_results")
 
-    for input_file in input_files:
-        if input_file.endswith(".pdf"):
-            pdf_processor.process(input_file)
-        elif input_file.endswith(".csv"):
-            csv_processor.process(input_file)
+    for category, data in processed_data.items():
+        if not data:
+            logger.debug(f"No data for category: {category}. Skipping... File: {file_path}")
+            continue
+
+        try:
+            # Generate output file name
+            output_file = broker.generate_output_file(category, file_path)
+
+            # Save data to CSV
+            write_to_csv("output", output_file, data)
+            logger.info(f"Data successfully saved to {output_file} for category {category}.")
+        except Exception as e:
+            logger.error(f"Error saving data to {output_file} for category {category}: {e}", exc_info=True)
+
+def main(brokers: list = None, data_dir: str = "data") -> None:
+    """
+    Main entry point for the program. Sets up logging and processes all input files.
+
+    :param brokers: List of broker objects to process files with.
+    :param data_dir: Directory containing input files.
+    """
+    # Initialize logging
+    configure_logging()
+    logger = logging.getLogger("main")
+    logger.info("Program start: Processing broker data.")
+
+    # Default brokers list if not provided
+    if brokers is None:
+        brokers = [N26Broker(), TerzoBroker(), SelmaBroker(), RelaiBroker(), KasparundBroker(), LibertyBroker(), SaxoBroker()]
+
+    # Check input files directory
+    if not os.path.exists(data_dir):
+        logger.error(f"Input directory {data_dir} does not exist.")
+        return
+
+    # Read all files in the directory
+    input_files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f))]
+
+    if not input_files:
+        logger.warning(f"No files found in directory {data_dir}.")
+        return
+
+    # Process each file
+    for file_path in input_files:
+        logger.info(f"Processing file: {file_path}")
+        process_file(file_path, brokers)
+
+    logger.info("Program end: Processing completed.")
+
 
 if __name__ == "__main__":
     main()
