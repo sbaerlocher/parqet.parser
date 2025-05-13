@@ -42,14 +42,14 @@ The library leverages configurable broker-specific settings and dynamic mappings
   - Currency
   - Transfer date (Valuta)
 
-### 3. **Interest Data Extraction** *(Only for Terzo and Kasparund)*
+### 3. **Interest Data Extraction** _(Only for Terzo and Kasparund)_
 
 - Identifies and extracts interest payments.
 - Extracts:
   - Interest amount
   - Credit date
 
-### 4. **Dividend Data Extraction** *(Only for Selma)*
+### 4. **Dividend Data Extraction** _(Only for Selma)_
 
 - Recognizes and processes dividends and associated withholding taxes.
 - Extracts:
@@ -64,7 +64,8 @@ The library leverages configurable broker-specific settings and dynamic mappings
 
 ### 6. **Output Compatible with Parqet**
 
-- The processed data is stored in CSV files formatted for compatibility with [Parqet](https://parqet.com), making it easy to import and track your financial data.
+- The processed data is stored in CSV files formatted for compatibility with [Parqet](https://parqet.com), making it
+  easy to import and track your financial data.
 
 ---
 
@@ -192,8 +193,10 @@ The library leverages configurable broker-specific settings and dynamic mappings
    ```
 
 7. Run the `main.py` Script:
+
    - The `main.py` script automates the processing of PDF and CSV files in a specified input folder.
    - **Steps**:
+
      1. Place your PDF and CSV files in the `./input` folder.
      2. Run the script:
 
@@ -220,40 +223,40 @@ Each function returns a dictionary containing:
 
 ```json
 {
-    "trades": [
-        {
-            "date": "2024-01-15",
-            "shares": "100",
-            "price": "105.50",
-            "amount": "10550.00",
-            "currency": "CHF"
-        }
-    ],
-    "cash_transfers": [
-        {
-            "date": "2024-01-10",
-            "amount": "2000.00",
-            "currency": "CHF"
-        }
-    ],
-    "interest": [
-        {
-            "date": "2024-01-01",
-            "amount": "15.75",
-            "currency": "CHF"
-        }
-    ],
-    "dividends": [
-        {
-            "date": "2024-01-01",
-            "amount": "50.00",
-            "tax": "10.00",
-            "shares": "100",
-            "currency": "EUR"
-        }
-    ],
-    "portfolio_number": "1234-5678",
-    "broker": "Selma"
+  "trades": [
+    {
+      "date": "2024-01-15",
+      "shares": "100",
+      "price": "105.50",
+      "amount": "10550.00",
+      "currency": "CHF"
+    }
+  ],
+  "cash_transfers": [
+    {
+      "date": "2024-01-10",
+      "amount": "2000.00",
+      "currency": "CHF"
+    }
+  ],
+  "interest": [
+    {
+      "date": "2024-01-01",
+      "amount": "15.75",
+      "currency": "CHF"
+    }
+  ],
+  "dividends": [
+    {
+      "date": "2024-01-01",
+      "amount": "50.00",
+      "tax": "10.00",
+      "shares": "100",
+      "currency": "EUR"
+    }
+  ],
+  "portfolio_number": "1234-5678",
+  "broker": "Selma"
 }
 ```
 
@@ -288,7 +291,8 @@ The `BrokerConfig` class encapsulates broker-specific settings such as:
 - **Adding New Brokers**: Create a new `process_<broker>_document` function with:
   - Customized `BrokerConfig`
   - Mappings for regular expressions
-- **Extending Existing Functionality**: Add new fields or data types to the `data` dictionary and update associated extraction logic.
+- **Extending Existing Functionality**: Add new fields or data types to the `data` dictionary and update associated
+  extraction logic.
 
 ---
 
@@ -297,7 +301,8 @@ The `BrokerConfig` class encapsulates broker-specific settings such as:
 - `logging`: For structured logs.
 - `re`: For pattern matching and extraction.
 - `pandas`: For handling CSV files and data transformations.
-- **External Libraries**: Ensure the library can import modules from `lib.utilities`, `lib.process_trades`, `lib.process_cash_transfers`, and `lib.process_interest`.
+- **External Libraries**: Ensure the library can import modules from `lib.utilities`, `lib.process_trades`,
+  `lib.process_cash_transfers`, and `lib.process_interest`.
 
 ---
 

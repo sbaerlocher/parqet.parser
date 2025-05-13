@@ -10,7 +10,6 @@
 # Icon must end with two \r
 Icon
 
-
 # Thumbnails
 ._*
 
@@ -209,6 +208,8 @@ pyrightconfig.json
 # Ignore CSV, PDF, and JSON files
 *.csv
 *.pdf
-*.json
+*config.json
+
+megalinter-reports/*
 
 # End of https://www.toptal.com/developers/gitignore/api/python,macos

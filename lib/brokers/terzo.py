@@ -1,22 +1,23 @@
 import logging
-import os
 import re
 from datetime import datetime
+
 from lib.brokers.base_broker import BaseBroker
 from lib.common.utilities import (
-    load_holding_map, 
-    validate_pdf, 
-    get_pdf_content, 
-    process_datetime_to_utc, 
+    clean_string,
+    format_number_for_reading,
+    get_pdf_content,
+    load_holding_map,
     move_file_with_conflict_resolution,
-    clean_string, 
-    format_number_for_reading
+    process_datetime_to_utc,
+    validate_pdf,
 )
 from lib.data_types.deposits_withdrawals import process_deposits_withdrawals
-from lib.data_types.trades import process_trades
-from lib.data_types.interest import process_interest
 from lib.data_types.dividends import process_dividends
 from lib.data_types.fees import process_fees
+from lib.data_types.interest import process_interest
+from lib.data_types.trades import process_trades
+
 
 # Configuration for Terzo Broker
 class TerzoBrokerConfig:
@@ -38,8 +39,12 @@ class TerzoBrokerConfig:
 
         # Adjust time based on category
         category = tx.get("category", "unknown")
-        specific_time = TerzoBrokerConfig.CATEGORY_TIME_MAPPING.get(category, "00:00:00Z")
-        datetime_obj = datetime.strptime(f"{datetime_obj.date()} {specific_time}", "%Y-%m-%d %H:%M:%S%z")
+        specific_time = TerzoBrokerConfig.CATEGORY_TIME_MAPPING.get(
+            category, "00:00:00Z"
+        )
+        datetime_obj = datetime.strptime(
+            f"{datetime_obj.date()} {specific_time}", "%Y-%m-%d %H:%M:%S%z"
+        )
 
         return {
             "holding": holding_map.get(portfolio_number, "???"),
@@ -53,15 +58,15 @@ class TerzoBrokerConfig:
                 "match": r"(Zahlungseingang)",
                 "amount": r"Betrag\s*CHF\s*([\d'.,-]+)",
                 "currency": r"Betrag\s*([A-Z]{3})",
-                "transaction_date": r"Valuta\s*(\d{2}\.\d{2}\.\d{4})"
+                "transaction_date": r"Valuta\s*(\d{2}\.\d{2}\.\d{4})",
             },
             "fields": lambda tx, portfolio_number, holding_map: {
                 **TerzoBrokerConfig.common_fields(tx, portfolio_number, holding_map),
                 "type": "TransferIn",
                 "originalcurrency": "CHF",
-                "total_amount": tx.get("amount", "")
+                "total_amount": tx.get("amount", ""),
             },
-            "process_function": process_deposits_withdrawals
+            "process_function": process_deposits_withdrawals,
         },
         "trade": {
             "regex_patterns": {
@@ -72,7 +77,7 @@ class TerzoBrokerConfig:
                 "currency": r"Betrag\s*([A-Z]{3})",
                 "fx_rate": r"Umrechnungskurs\s*[A-Z]{3}/[A-Z]{3}\s*([\d'.,]+)",
                 "transaction_date": r"Valuta\s*(\d{2}\.\d{2}\.\d{4})",
-                "isin_code": r"ISIN:\s*([A-Z0-9]+)"
+                "isin_code": r"ISIN:\s*([A-Z0-9]+)",
             },
             "fields": lambda tx, portfolio_number, holding_map: {
                 **TerzoBrokerConfig.common_fields(tx, portfolio_number, holding_map),
@@ -83,24 +88,24 @@ class TerzoBrokerConfig:
                 "fxrate": tx.get("fx_rate", ""),
                 "currency": clean_string(tx.get("currency", "CHF")),
                 "isin_code": clean_string(tx.get("isin_code", "")),
-                "share_count": tx.get("share_count", "")
+                "share_count": tx.get("share_count", ""),
             },
-            "process_function": process_trades
+            "process_function": process_trades,
         },
         "interest": {
             "regex_patterns": {
                 "match": r"(Zins)",
                 "amount": r"Zinsgutschrift:\s*CHF\s*([\d'.,-]+)",
                 "transaction_date": r"Am\s*(\d{2}\.\d{2}\.\d{4})\s*haben wir",
-                "currency": r"Betrag\s*([A-Z]{3})"
+                "currency": r"Betrag\s*([A-Z]{3})",
             },
             "fields": lambda tx, portfolio_number, holding_map: {
                 **TerzoBrokerConfig.common_fields(tx, portfolio_number, holding_map),
                 "type": "Interest",
                 "originalcurrency": "CHF",
-                "amount": tx.get("amount", "")
+                "amount": tx.get("amount", ""),
             },
-            "process_function": process_interest
+            "process_function": process_interest,
         },
         "dividend": {
             "regex_patterns": {
@@ -108,7 +113,7 @@ class TerzoBrokerConfig:
                 "total_amount": r"Gutgeschriebener Betrag:\s*Valuta\s*\d{2}\.\d{2}\.\d{4}\s*CHF\s*([\d'.,-]+)",
                 "currency": r"Gutgeschriebener Betrag:\s*Valuta\s*\d{2}\.\d{2}\.\d{4}\s*([A-Z]{3})",
                 "transaction_date": r"Valuta\s*(\d{2}\.\d{2}\.\d{4})",
-                "isin_code": r"ISIN:\s*([A-Z0-9]+)"
+                "isin_code": r"ISIN:\s*([A-Z0-9]+)",
             },
             "fields": lambda tx, portfolio_number, holding_map: {
                 **TerzoBrokerConfig.common_fields(tx, portfolio_number, holding_map),
@@ -117,14 +122,14 @@ class TerzoBrokerConfig:
                 "total_amount": tx.get("total_amount", ""),
                 "isin_code": clean_string(tx.get("isin_code", "")),
             },
-            "process_function": process_dividends
+            "process_function": process_dividends,
         },
         "fee": {
             "regex_patterns": {
                 "match": r"(Verwaltungsgeb\u00fchr)",
                 "amount": r"Verrechneter\s+Betrag:\s+Valuta\s+\d{2}\.\d{2}\.\d{4}\s+CHF\s+([\d'.,-]+)",
                 "currency": r"Verrechneter\s+Betrag:\s+Valuta\s+\d{2}\.\d{2}\.\d{4}\s+(CHF)",
-                "transaction_date": r"Am\s*(\d{2}\.\d{2}\.\d{4})\s*haben wir"
+                "transaction_date": r"Am\s*(\d{2}\.\d{2}\.\d{4})\s*haben wir",
             },
             "fields": lambda tx, portfolio_number, holding_map: {
                 **TerzoBrokerConfig.common_fields(tx, portfolio_number, holding_map),
@@ -132,17 +137,16 @@ class TerzoBrokerConfig:
                 "originalcurrency": "CHF",
                 "total_amount": tx.get("amount", ""),
                 "fee": format_number_for_reading(tx.get("amount", "")),
-                "tax": "0"
+                "tax": "0",
             },
-            "process_function": process_fees
-        }
+            "process_function": process_fees,
+        },
     }
 
-    IDENTIFIERS = [
-        "Terzo Vorsorgestiftung"
-    ]
+    IDENTIFIERS = ["Terzo Vorsorgestiftung"]
 
     PORTFOLIO_NUMBER_PATTERN = r"Portfolio\s*(?:Nr\.)?\s*([\d\.\-]+)"
+
 
 class TerzoBroker(BaseBroker):
     def __init__(self, config_path="config.json"):
@@ -197,16 +201,22 @@ class TerzoBroker(BaseBroker):
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 transaction[field_name] = match.group(1)
-                logging.debug(f"Field '{field_name}' matched with value: {transaction[field_name]}")
+                logging.debug(
+                    f"Field '{field_name}' matched with value: {transaction[field_name]}"
+                )
         return transaction
 
     def _process_categories(self, transactions):
         results = {}
         for category_name, definition in self.data_definitions.items():
-            category_transactions = [tx for tx in transactions if tx.get("category") == category_name]
+            category_transactions = [
+                tx for tx in transactions if tx.get("category") == category_name
+            ]
             process_function = definition.get("process_function")
             if process_function:
-                normalized_transactions = self._normalize_transactions(category_transactions, definition)
+                normalized_transactions = self._normalize_transactions(
+                    category_transactions, definition
+                )
                 results[category_name] = process_function(normalized_transactions)
         return results
 
@@ -214,14 +224,18 @@ class TerzoBroker(BaseBroker):
         normalized = []
         fields_mapping = category_definition.get("fields")
         for transaction in transactions:
-            normalized_tx = fields_mapping(transaction, self.portfolio_number, self.holding_map)
+            normalized_tx = fields_mapping(
+                transaction, self.portfolio_number, self.holding_map
+            )
             normalized.append(normalized_tx)
         return normalized
 
     def move_and_rename_file(self, file_path, transactions):
         prefix = f"{TerzoBrokerConfig.BROKER_NAME.replace(' ', '_').lower()}-{self.portfolio_number}"
         try:
-            new_path = move_file_with_conflict_resolution(file_path, TerzoBrokerConfig.TARGET_DIRECTORY, prefix, transactions)
+            new_path = move_file_with_conflict_resolution(
+                file_path, TerzoBrokerConfig.TARGET_DIRECTORY, prefix, transactions
+            )
             logging.info(f"File successfully moved and renamed to: {new_path}")
         except Exception as e:
             logging.error(f"Error moving and renaming file: {e}")

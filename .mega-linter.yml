@@ -1,0 +1,32 @@
+---
+# Megalinter Minimal Configuration
+
+#############################
+# Disabled Linters & Validators
+#############################
+DISABLE_LINTERS:
+    - CSS_STYLELINT # CSS linting disabled
+    - JSON_V8R # JSON validation disabled
+    - REPOSITORY_TRUFFLEHOG # Secret scanning disabled
+    - SPELL_CSPELL # Spelling check (CSpell) disabled
+    - SPELL_LYCHEE # Spelling check (Lychee) disabled
+    - TERRAFORM_TERRAGRUNT # Terraform/Terragrunt linting disabled
+    - YAML_V8R # YAML validation disabled
+    - JAVASCRIPT_STANDARD # JavaScript Standard linting disabled
+
+#############################
+# Auto-Fix and Process Settings
+#############################
+APPLY_FIXES: all # Automatically fix issues where possible
+GO_GOLANGCI_LINT_ARGUMENTS: './packages/silentpsscript/... ./packages/firewallguard/... ./packages/wallpaper/...'
+JAVASCRIPT_STANDARD_FIX: false # Disable auto-fix for JavaScript Standard
+PARALLEL_PROCESS_NUMBER: 5 # Run 5 processes in parallel
+BASH_SHFMT_ARGUMENTS: '-i 4' # Set shfmt indentation to 4 spaces
+
+#############################
+# Repository Scanning & Documentation Exclusions
+#############################
+REPOSITORY_GITLEAKS_ARGUMENTS: '--log-opts=--since=2025-04-01' # Filter Gitleaks logs since specified date
+REPOSITORY_KICS_CONFIG_FILE: .kics.json # Specify KICS configuration file
+RST_RST_LINT_FILTER_REGEX_EXCLUDE: 'docs/rst/index.rst|docs/rst/playbooks/index.rst' # Exclude specific RST files from linting
+RST_RSTCHECK_FILTER_REGEX_EXCLUDE: 'docs/rst/index.rst|docs/rst/playbooks/index.rst' # Exclude specific RST files from checking

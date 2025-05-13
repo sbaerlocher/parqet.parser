@@ -1,6 +1,12 @@
 import logging
-from lib.common.utilities import format_number_for_reading, process_datetime_to_utc, convert_datetime_to_timezone, datetime_to_iso
-from datetime import datetime
+
+from lib.common.utilities import (
+    convert_datetime_to_timezone,
+    datetime_to_iso,
+    format_number_for_reading,
+    process_datetime_to_utc,
+)
+
 
 def validate_and_convert_datetime(datetime_value, timezone="Europe/Zurich"):
     """
@@ -28,6 +34,7 @@ def validate_and_convert_datetime(datetime_value, timezone="Europe/Zurich"):
         logging.error(f"Error validating and converting datetime: {e}")
         raise
 
+
 def format_transaction(transaction, localized_datetime):
     """
     Formats a single transaction.
@@ -42,31 +49,32 @@ def format_transaction(transaction, localized_datetime):
 
         return {
             "datetime": iso_datetime,
-            "date": localized_datetime.strftime('%d.%m.%Y'),
-            "time": localized_datetime.strftime('%H:%M:%S'),
+            "date": localized_datetime.strftime("%d.%m.%Y"),
+            "time": localized_datetime.strftime("%H:%M:%S"),
             "price": "1",
             "shares": "",
             "amount": format_number_for_reading(transaction.get("amount", 0)),
             "tax": "0",
             "fee": "0",
             "realizedgains": "",
-            "type": transaction.get('type', ''),
-            "broker": transaction.get('broker', ''),
+            "type": transaction.get("type", ""),
+            "broker": transaction.get("broker", ""),
             "assettype": "",
             "identifier": "",
             "wkn": "",
-            "originalcurrency": transaction.get('originalcurrency', ''),
-            "currency": transaction.get('originalcurrency', ''),
+            "originalcurrency": transaction.get("originalcurrency", ""),
+            "currency": transaction.get("originalcurrency", ""),
             "fxrate": "",
             "holding": transaction.get("holding", ""),
             "holdingname": "",
             "holdingnickname": "",
             "exchange": "",
-            "avgholdingperiod": ""
+            "avgholdingperiod": "",
         }
     except Exception as e:
         logging.error(f"Error formatting transaction: {transaction}, Error: {e}")
         raise ValueError("Transaction formatting failed")
+
 
 def process_interest(transactions, timezone="Europe/Zurich"):
     """
@@ -83,13 +91,17 @@ def process_interest(transactions, timezone="Europe/Zurich"):
             logging.debug(f"Processing transaction: {transaction}")
 
             # Validate and convert datetime
-            localized_datetime = validate_and_convert_datetime(transaction.get("datetime"), timezone)
+            localized_datetime = validate_and_convert_datetime(
+                transaction.get("datetime"), timezone
+            )
 
             # Format the transaction
             formatted_transaction = format_transaction(transaction, localized_datetime)
 
             formatted_transactions.append(formatted_transaction)
         except Exception as error:
-            logging.error(f"Error processing transaction: {transaction}, Error: {error}")
+            logging.error(
+                f"Error processing transaction: {transaction}, Error: {error}"
+            )
 
     return formatted_transactions

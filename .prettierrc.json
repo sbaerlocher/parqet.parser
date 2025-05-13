@@ -1,0 +1,53 @@
+{
+        "endOfLine": "lf",
+        "tabWidth": 4,
+        "useTabs": false,
+        "singleQuote": true,
+        "overrides": [
+                {
+                        "files": "**/*.json",
+                        "options": {
+                                "tabWidth": 8,
+                                "useTabs": false
+                        }
+                },
+
+                {
+                        "files": "Makefile",
+                        "options": {
+                                "useTabs": true
+                        }
+                },
+
+                {
+                        "files": ".pylintrc",
+                        "options": {
+                                "tabWidth": 4,
+                                "useTabs": false
+                        }
+                },
+                {
+                        "files": "Dockerfile",
+                        "options": {
+                                "tabWidth": 8,
+                                "useTabs": true
+                        }
+                },
+                {
+                        "files": "manager",
+                        "options": {
+                                "tabWidth": 4,
+                                "useTabs": false
+                        }
+                },
+
+                {
+                        "files": "*.md",
+                        "options": {
+                                "tabWidth": 2,
+                                "useTabs": false,
+                                "proseWrap": "always"
+                        }
+                }
+        ]
+}

@@ -1,12 +1,16 @@
 import logging
-from lib.common.utilities import format_number_for_reading, convert_datetime_to_timezone, calculate_price, process_datetime_to_utc
-from datetime import datetime
-import pandas as pd
-from pytz import timezone
+
+from lib.common.utilities import (
+    calculate_price,
+    convert_datetime_to_timezone,
+    format_number_for_reading,
+    process_datetime_to_utc,
+)
 
 # Constants for required and optional keys
 REQUIRED_KEYS = {"datetime", "isin_code"}
 OPTIONAL_KEYS = {"fxrate", "tax", "fee"}
+
 
 def format_transaction(transaction, utc_datetime, localized_datetime):
     """
@@ -18,7 +22,7 @@ def format_transaction(transaction, utc_datetime, localized_datetime):
     :return: Formatted transaction dictionary.
     """
     try:
-        iso_datetime = utc_datetime.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        iso_datetime = utc_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
         logging.debug(f"Formatting transaction with UTC datetime: {iso_datetime}")
 
         # Calculate price using utility function
@@ -28,8 +32,8 @@ def format_transaction(transaction, utc_datetime, localized_datetime):
 
         formatted_transaction = {
             "datetime": iso_datetime,  # UTC datetime
-            "date": localized_datetime.strftime('%d.%m.%Y'),  # Local date
-            "time": localized_datetime.strftime('%H:%M:%S'),  # Local time
+            "date": localized_datetime.strftime("%d.%m.%Y"),  # Local date
+            "time": localized_datetime.strftime("%H:%M:%S"),  # Local time
             "price": calculated_price,
             "shares": format_number_for_reading(transaction.get("share_count", 0)),
             "amount": format_number_for_reading(transaction.get("total_amount", 0)),
@@ -48,12 +52,13 @@ def format_transaction(transaction, utc_datetime, localized_datetime):
             "holdingname": "",
             "holdingnickname": "",
             "exchange": "",
-            "avgholdingperiod": ""
+            "avgholdingperiod": "",
         }
         return formatted_transaction
     except Exception as e:
         logging.error(f"Error formatting transaction: {transaction}, Error: {e}")
         raise ValueError("Transaction formatting failed")
+
 
 def process_dividends(transactions, timezone="Europe/Zurich"):
     """
@@ -67,7 +72,9 @@ def process_dividends(transactions, timezone="Europe/Zurich"):
 
     for idx, transaction in enumerate(transactions):
         try:
-            logging.debug(f"Processing transaction {idx + 1}/{len(transactions)}: {transaction.get('isin_code', 'Unknown')}")
+            logging.debug(
+                f"Processing transaction {idx + 1}/{len(transactions)}: {transaction.get('isin_code', 'Unknown')}"
+            )
 
             # Validate required fields before processing
             missing_keys = REQUIRED_KEYS - transaction.keys()
@@ -82,19 +89,28 @@ def process_dividends(transactions, timezone="Europe/Zurich"):
             localized_datetime = convert_datetime_to_timezone(utc_datetime, timezone)
 
             # Format the transaction
-            formatted_dividend = format_transaction(transaction, utc_datetime, localized_datetime)
+            formatted_dividend = format_transaction(
+                transaction, utc_datetime, localized_datetime
+            )
 
             # Validate formatted transaction
-            if not formatted_dividend["datetime"] or not formatted_dividend["identifier"]:
+            if (
+                not formatted_dividend["datetime"]
+                or not formatted_dividend["identifier"]
+            ):
                 raise ValueError(f"Invalid dividend transaction: {formatted_dividend}")
 
             formatted_dividends.append(formatted_dividend)
         except Exception as error:
-            logging.error(f"Error processing dividend transaction with identifier {transaction.get('isin_code', 'Unknown')} and datetime {transaction.get('datetime', 'Unknown')}: {error}")
+            logging.error(
+                f"Error processing dividend transaction with identifier {transaction.get('isin_code', 'Unknown')} and datetime {transaction.get('datetime', 'Unknown')}: {error}"
+            )
 
     if len(formatted_dividends) <= 10:
         logging.debug(f"Formatted dividend transactions: {formatted_dividends}")
     else:
-        logging.debug(f"Processed {len(formatted_dividends)} transactions successfully.")
+        logging.debug(
+            f"Processed {len(formatted_dividends)} transactions successfully."
+        )
 
     return formatted_dividends

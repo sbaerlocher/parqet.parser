@@ -1,0 +1,154 @@
+# EditorConfig helps maintain consistent coding styles across various editors and IDEs.
+# More info: https://editorconfig.org
+
+root = true
+
+##########################################################################
+# Global Settings for All Files
+##########################################################################
+[*]
+charset = utf-8                 # Use UTF-8 encoding for all files
+end_of_line = lf                # Use LF for newlines
+indent_size = 4                 # Default indent size: 4 spaces
+indent_style = space            # Use spaces for indentation by default
+insert_final_newline = true     # Ensure files end with a newline
+trim_trailing_whitespace = true # Remove any trailing whitespace
+quote_type = single             # Use single quotes by default
+
+##########################################################################
+# Specific Language/Framework Settings
+##########################################################################
+
+# JavaScript, TypeScript, CSS, and JSON files
+[*.{js,tsx,ts,jsx,css,styl,less,json}]
+indent_size = 2                 # Use 2 spaces for these files
+
+# Composer JSON file
+[composer.json]
+indent_size = 4
+
+# Git Commit Messages
+[COMMIT_EDITMSG]
+max_line_length = 0             # No maximum line length
+
+##########################################################################
+# YAML Files
+##########################################################################
+[*.{yml,yaml}]
+indent_size = 2                 # Use 2 spaces for YAML files
+quote_type = double             # Use double quotes for YAML
+
+##########################################################################
+# Jinja2 Templates
+##########################################################################
+[**.j2]
+end_of_line = lf
+charset = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
+
+##########################################################################
+# Markdown Files
+##########################################################################
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+max_line_length = 120          # Set maximum line length to 120 characters
+indent_size = 2
+
+##########################################################################
+# JSON Files (and KICS config files)
+##########################################################################
+[**.json]
+indent_size = 4
+
+##########################################################################
+# Configuration Files (.conf)
+##########################################################################
+[**.conf]
+indent_size = 2
+
+##########################################################################
+# Makefile
+##########################################################################
+[Makefile]
+indent_style = tab             # Use tabs for Makefiles
+
+##########################################################################
+# Vagrantfile
+##########################################################################
+[Vagrantfile]
+indent_size = 2
+
+##########################################################################
+# Terraform Files
+##########################################################################
+[*.{tf,tfvars}]
+indent_size = 4
+indent_style = space
+
+##########################################################################
+# HCL Files
+##########################################################################
+[*.hcl]
+indent_size = 2
+indent_style = space
+
+##########################################################################
+# XML Files
+##########################################################################
+[*.xml]
+indent_size = 4
+indent_style = space
+
+##########################################################################
+# Pylint Configuration
+##########################################################################
+[.pylintrc]
+indent_size = 4
+
+[**.py]
+indent_size = 4
+
+##########################################################################
+# reStructuredText Files
+# (Limited to .rst and index.rst to avoid conflict with Markdown settings)
+##########################################################################
+[*.rst, index.rst]
+indent_size = 1
+
+##########################################################################
+# Shell Scripts & Specific Paths
+##########################################################################
+[*.sh]
+indent_size = 2                 # Use 2 spaces for shell scripts
+
+[manager]
+indent_size = 4
+
+##########################################################################
+# Dockerfile
+##########################################################################
+[Dockerfile]
+indent_size = 8
+indent_style = tab
+
+##########################################################################
+# Go Files and Related Configurations
+##########################################################################
+[*.{go,work,mod}]
+indent_size = 4
+indent_style = tab
+
+[playbook.conf]
+indent_size = 4
+indent_style = tab
+
+[assets/binaries/**/*]
+end_of_line = unset
+charset = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
