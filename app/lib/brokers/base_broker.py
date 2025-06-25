@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 
+
 class BaseBroker(ABC):
     """
-    Abstrakte Basis-Klasse für Broker. Diese Klasse definiert die Schnittstelle, 
+    Abstrakte Basis-Klasse für Broker. Diese Klasse definiert die Schnittstelle,
     die alle Broker-Implementierungen umsetzen müssen.
     """
 

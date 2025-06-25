@@ -1,11 +1,13 @@
 import logging
 import os
 
+
 def create_log_directory():
     """
     Ensures that the log directory exists.
     """
     os.makedirs("logs", exist_ok=True)
+
 
 def get_log_level():
     """
@@ -13,11 +15,15 @@ def get_log_level():
     """
     return os.getenv("LOG_LEVEL", "DEBUG").upper()
 
+
 def get_log_format():
     """
     Retrieves the log format from environment variables or defaults to a standard format.
     """
-    return os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    return os.getenv(
+        "LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
 
 def configure_file_handler(log_file, level, formatter):
     """
@@ -32,6 +38,7 @@ def configure_file_handler(log_file, level, formatter):
     handler.setLevel(level)
     handler.setFormatter(formatter)
     return handler
+
 
 def configure_stream_handler(level, formatter, restricted_loggers):
     """
@@ -53,6 +60,7 @@ def configure_stream_handler(level, formatter, restricted_loggers):
         logger.propagate = False
 
     return handler
+
 
 def configure_logging():
     """
@@ -87,6 +95,5 @@ def configure_logging():
 
     # Configure root logger
     logging.basicConfig(
-        level=log_level,
-        handlers=[general_handler, error_handler, debug_handler]
+        level=log_level, handlers=[general_handler, error_handler, debug_handler]
     )

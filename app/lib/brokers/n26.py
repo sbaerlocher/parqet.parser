@@ -1,20 +1,23 @@
-import pandas as pd
-import re
-import os
-import logging
 import csv
+import logging
+import os
+import re
 from datetime import datetime
+
+import pandas as pd
 from pytz import timezone
+
 from lib.brokers.base_broker import BaseBroker
 from lib.common.utilities import (
-    load_holding_map, 
-    process_datetime_to_utc, 
-    convert_datetime_to_timezone, 
+    clean_string,
+    convert_datetime_to_timezone,
+    load_holding_map,
     move_file_with_conflict_resolution,
-    clean_string
+    process_datetime_to_utc,
 )
-from lib.data_types.interest import process_interest
 from lib.data_types.deposits_withdrawals import process_deposits_withdrawals
+from lib.data_types.interest import process_interest
+
 
 class N26BrokerConfig:
     BROKER_NAME = "N26"
@@ -33,7 +36,9 @@ class N26BrokerConfig:
 
         category = tx.get("type", "unknown")
         specific_time = N26BrokerConfig.CATEGORY_TIME_MAPPING.get(category, "00:00:00Z")
-        datetime_obj = datetime.strptime(f"{datetime_obj.date()} {specific_time}", "%Y-%m-%d %H:%M:%S%z")
+        datetime_obj = datetime.strptime(
+            f"{datetime_obj.date()} {specific_time}", "%Y-%m-%d %H:%M:%S%z"
+        )
 
         return {
             "holding": holding_map.get(iban, "???"),
@@ -41,15 +46,23 @@ class N26BrokerConfig:
             "datetime": datetime_obj,
         }
 
+
 class N26Broker(BaseBroker):
     """
     Broker implementation for N26.
     """
 
     EXPECTED_HEADERS = [
-        "Booking Date", "Value Date", "Partner Name", "Partner Iban",
-        "Type", "Payment Reference", "Account Name", "Amount (EUR)",
-        "Original Amount", "Exchange Rate"
+        "Booking Date",
+        "Value Date",
+        "Partner Name",
+        "Partner Iban",
+        "Type",
+        "Payment Reference",
+        "Account Name",
+        "Amount (EUR)",
+        "Original Amount",
+        "Exchange Rate",
     ]
 
     def __init__(self, config_path="config.json"):
@@ -67,7 +80,7 @@ class N26Broker(BaseBroker):
         """
         if file_path.endswith(".csv"):
             try:
-                with open(file_path, newline='', encoding='utf-8') as csvfile:
+                with open(file_path, newline="", encoding="utf-8") as csvfile:
                     headers = next(csv.reader(csvfile))
                     logging.debug(f"Headers in file: {headers}")
                     return all(header in headers for header in self.EXPECTED_HEADERS)
@@ -84,7 +97,9 @@ class N26Broker(BaseBroker):
         """
         try:
             transactions = pd.read_csv(file_path).to_dict(orient="index")
-            logging.debug(f"Extracted {len(transactions)} transactions from {file_path}.")
+            logging.debug(
+                f"Extracted {len(transactions)} transactions from {file_path}."
+            )
             return transactions
         except Exception as e:
             raise RuntimeError(f"Error reading file {file_path}: {e}")
@@ -98,7 +113,7 @@ class N26Broker(BaseBroker):
         """
         logging.debug("Starting transaction processing.")
 
-        iban = self._extract_iban_from_filename(file_path) if file_path else 'unknown'
+        iban = self._extract_iban_from_filename(file_path) if file_path else "unknown"
         logging.debug(f"Extracted IBAN: {iban}")
 
         transactions = data.values()
@@ -107,22 +122,28 @@ class N26Broker(BaseBroker):
         for tx in transactions:
             try:
                 # Use fallback logic for missing Value Date
-                date_value = tx.get('Value Date')
+                date_value = tx.get("Value Date")
                 if pd.isna(date_value):
-                    date_value = tx.get('Booking Date')
+                    date_value = tx.get("Booking Date")
 
                 if pd.isna(date_value):
-                    raise ValueError("Both Value Date and Booking Date are missing or invalid.")
+                    raise ValueError(
+                        "Both Value Date and Booking Date are missing or invalid."
+                    )
 
                 tx["datetime"] = process_datetime_to_utc(date_value)
                 normalized_transaction = self._normalize_transaction(tx, iban)
                 if normalized_transaction:
                     normalized_transactions.append(normalized_transaction)
             except ValueError as e:
-                logging.warning(f"Skipping transaction due to error: {e}. Transaction data: {tx}")
+                logging.warning(
+                    f"Skipping transaction due to error: {e}. Transaction data: {tx}"
+                )
 
         results = {
-            "deposits_withdrawals": process_deposits_withdrawals(normalized_transactions),
+            "deposits_withdrawals": process_deposits_withdrawals(
+                normalized_transactions
+            ),
         }
         logging.debug(f"Processed data: {results}")
 
@@ -159,7 +180,9 @@ class N26Broker(BaseBroker):
         :return: Cleaned IBAN or 'unknown'.
         """
         file_name = os.path.basename(file_path)
-        match = re.search(r"(DE\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{2})", file_name)
+        match = re.search(
+            r"(DE\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{2})", file_name
+        )
         iban = match.group(1).replace(" ", "") if match else "unknown"
         logging.debug(f"Extracted IBAN from file name {file_path}: {iban}")
         return iban

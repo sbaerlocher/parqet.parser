@@ -1,18 +1,20 @@
-import logging
 import csv
+import logging
 import os
 import re
-import pandas as pd
 from datetime import timedelta
+
+import pandas as pd
+
 from lib.common.utilities import (
     load_holding_map,
     process_datetime_to_utc,
     standardize_number,
 )
 from lib.data_types.deposits_withdrawals import process_deposits_withdrawals
-from lib.data_types.trades import process_trades
 from lib.data_types.dividends import process_dividends
 from lib.data_types.fees import process_fees
+from lib.data_types.trades import process_trades
 
 
 class SelmaBrokerConfig:

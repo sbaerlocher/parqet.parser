@@ -192,9 +192,9 @@ The library leverages configurable broker-specific settings and dynamic mappings
    print(result)
    ```
 
-7. Run the `main.py` Script:
+7. Run the `app/main.py` Script:
 
-   - The `main.py` script automates the processing of PDF and CSV files in a specified input folder.
+   - The `app/main.py` script automates the processing of PDF and CSV files in a specified input folder.
    - **Steps**:
 
      1. Place your PDF and CSV files in the `./input` folder.

@@ -11,7 +11,9 @@ services:
         environment:
             - PROJECT_DIR=${PWD}
         volumes:
-            - ${PWD}:${PWD}
+            - ${PWD}/data:${PWD}/data
+            - ${PWD}/app:${PWD}
+            - ${PWD}/output:${PWD}/output
         networks:
             - default
         security_opt:

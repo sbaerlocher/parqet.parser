@@ -1,11 +1,18 @@
 import logging
-from pytz import timezone
 from datetime import datetime
+
 import pandas as pd
+from pytz import timezone
+
 
 # Helper to add UTC timezone if missing
 def _ensure_utc_timezone(value):
-    return value.astimezone(timezone("UTC")) if value.tzinfo else value.replace(tzinfo=timezone("UTC"))
+    return (
+        value.astimezone(timezone("UTC"))
+        if value.tzinfo
+        else value.replace(tzinfo=timezone("UTC"))
+    )
+
 
 def process_datetime_to_utc(value, custom_format=None):
     """
@@ -43,11 +50,12 @@ def process_datetime_to_utc(value, custom_format=None):
                 continue
 
     logging.debug("Falling back to pandas for datetime parsing.")
-    parsed = pd.to_datetime(value, errors='coerce')
+    parsed = pd.to_datetime(value, errors="coerce")
     if pd.isna(parsed):
         logging.error("Pandas failed to parse the datetime value.")
         raise ValueError(f"Unsupported date format: {value}")
     return _ensure_utc_timezone(parsed.to_pydatetime())
+
 
 def convert_datetime_to_timezone(value, target_timezone="Europe/Zurich"):
     """
@@ -69,6 +77,7 @@ def convert_datetime_to_timezone(value, target_timezone="Europe/Zurich"):
     logging.debug(f"Converting datetime to timezone: {target_timezone}")
     return value.astimezone(timezone(target_timezone))
 
+
 def datetime_to_iso(value):
     """
     Converts a datetime object to an ISO 8601 string in the format 'YYYY-MM-DDTHH:MM:SS.000Z'.
@@ -85,5 +94,7 @@ def datetime_to_iso(value):
         logging.debug("Datetime object is naive, assuming UTC.")
         value = value.replace(tzinfo=timezone("UTC"))
 
-    logging.debug("Converting datetime object to ISO 8601 string with milliseconds and UTC.")
-    return value.astimezone(timezone("UTC")).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    logging.debug(
+        "Converting datetime object to ISO 8601 string with milliseconds and UTC."
+    )
+    return value.astimezone(timezone("UTC")).strftime("%Y-%m-%dT%H:%M:%S.000Z")

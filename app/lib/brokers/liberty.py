@@ -2,20 +2,23 @@ import logging
 import os
 import re
 from datetime import datetime
+
 from lib.brokers.base_broker import BaseBroker
 from lib.common.utilities import (
-    load_holding_map, 
-    validate_pdf, 
-    get_pdf_content, 
-    process_datetime_to_utc, 
+    clean_string,
+    format_number_for_reading,
+    get_pdf_content,
+    load_holding_map,
     move_file_with_conflict_resolution,
-    clean_string
+    process_datetime_to_utc,
+    validate_pdf,
 )
 from lib.data_types.deposits_withdrawals import process_deposits_withdrawals
-from lib.data_types.trades import process_trades
-from lib.data_types.interest import process_interest
 from lib.data_types.dividends import process_dividends
-from lib.data_types.fees import process_fees
+from lib.data_types.fees import process_fees  # Added fees processor
+from lib.data_types.interest import process_interest
+from lib.data_types.trades import process_trades
+
 
 # Configuration for Liberty Broker
 class LibertyBrokerConfig:
@@ -37,8 +40,12 @@ class LibertyBrokerConfig:
 
         # Adjust time based on category
         category = tx.get("category", "unknown")
-        specific_time = LibertyBrokerConfig.CATEGORY_TIME_MAPPING.get(category, "00:00:00Z")
-        datetime_obj = datetime.strptime(f"{datetime_obj.date()} {specific_time}", "%Y-%m-%d %H:%M:%S%z")
+        specific_time = LibertyBrokerConfig.CATEGORY_TIME_MAPPING.get(
+            category, "00:00:00Z"
+        )
+        datetime_obj = datetime.strptime(
+            f"{datetime_obj.date()} {specific_time}", "%Y-%m-%d %H:%M:%S%z"
+        )
 
         return {
             "holding": holding_map.get(portfolio_number, "???"),
@@ -52,15 +59,15 @@ class LibertyBrokerConfig:
                 "match": r"(Gu\s*tschriftsanzeige|Belastu\s*ngsanzeige|Credit Advice)",
                 "amount": r"(?:gutgeschrieben|belastet|has been credited):\s*CHF\s*([\d'.,]+)",
                 "currency": r"(?:gutgeschrieben|belastet|has been credited):\s*(CHF)",
-                "transaction_date": r"V\s*(?:aluta|alue date)\s+(\d{2}\.\d{2}\.\d{4})"
+                "transaction_date": r"V\s*(?:aluta|alue date)\s+(\d{2}\.\d{2}\.\d{4})",
             },
             "fields": lambda tx, portfolio_number, holding_map: {
                 **LibertyBrokerConfig.common_fields(tx, portfolio_number, holding_map),
                 "type": "TransferIn",
                 "currency": "CHF",
-                "total_amount": tx.get("amount", "")
+                "total_amount": tx.get("amount", ""),
             },
-            "process_function": process_deposits_withdrawals
+            "process_function": process_deposits_withdrawals,
         },
         "trade": {
             "regex_patterns": {
@@ -71,35 +78,35 @@ class LibertyBrokerConfig:
                 "price_per_share": r"(\d+\.\d+)\s*(?:\r?\n)?\s*Total",
                 "fx_rate": r"Change (?:[A-Z\s]+/[A-Z]+)\s*([\d\.]+)",
                 "transaction_date": r"V\s*aluta\s*(\d{2}\.\d{2}\.\d{4})",
-                "isin_code": r"ISIN:\s*([A-Z0-9 ]+)"
+                "isin_code": r"ISIN:\s*([A-Z0-9 ]+)",
             },
             "fields": lambda tx, portfolio_number, holding_map: {
                 **LibertyBrokerConfig.common_fields(tx, portfolio_number, holding_map),
                 "type": "buy",
                 "originalcurrency": clean_string(tx.get("currency")),
                 "price_per_share": tx.get("price_per_share", ""),
-                "total_amount": tx.get("total_amount", "").replace("'",""),
+                "total_amount": tx.get("total_amount", "").replace("'", ""),
                 "fxrate": tx.get("fx_rate", ""),
                 "currency": clean_string(tx.get("currency", "CHF")),
                 "isin_code": clean_string(tx.get("isin_code", "")),
-                "share_count": tx.get("share_count", "")
+                "share_count": tx.get("share_count", ""),
             },
-            "process_function": process_trades
+            "process_function": process_trades,
         },
         "interest": {
             "regex_patterns": {
                 "match": r"Am\s*(\d{2}\.\d{2}\.\d{4})\s*haben wir Ihrem Konto gutgeschrieben",
                 "amount": r"Zinsgutschrift:\s*CHF\s*([\d'.,-]+)",
                 "transaction_date": r"Am\s*(\d{2}\.\d{2}\.\d{4})\s*haben wir",
-                "currency": r"Zinsgutschrift:\s*([A-Z]{3})"
+                "currency": r"Zinsgutschrift:\s*([A-Z]{3})",
             },
-            "fields": lambda tx, self: {
-                **LibertyBrokerConfig.common_fields(tx, self),
+            "fields": lambda tx, portfolio_number, holding_map: {
+                **LibertyBrokerConfig.common_fields(tx, portfolio_number, holding_map),
                 "type": "Interest",
                 "originalcurrency": "CHF",
-                "total_amount": tx.get("amount", "")
+                "total_amount": tx.get("amount", ""),
             },
-            "process_function": process_interest
+            "process_function": process_interest,
         },
         "dividend": {
             "regex_patterns": {
@@ -108,40 +115,44 @@ class LibertyBrokerConfig:
                 "currency": r"Gutgeschriebener Betrag:\s*Valuta\s*\d{2}\.\d{2}\.\d{4}\s*([A-Z]{3})",
                 "share_count": r"Anzahl:\s*(-?[\d.,]+)",
                 "transaction_date": r"Valuta:\s*(\d{2}\.\d{2}\.\d{4})",
-                "isin_code": r"ISIN:\s*([A-Z0-9]+)"
+                "isin_code": r"ISIN:\s*([A-Z0-9]+)",
             },
-            "fields": lambda tx, self: {
-                **LibertyBrokerConfig.common_fields(tx, self),
+            "fields": lambda tx, portfolio_number, holding_map: {
+                **LibertyBrokerConfig.common_fields(tx, portfolio_number, holding_map),
                 "type": "Dividend",
                 "originalcurrency": "CHF",
-                "total_amount": tx.get("total_amount", "")
+                "total_amount": tx.get("total_amount", ""),
             },
-            "process_function": process_dividends
+            "process_function": process_dividends,
         },
         "fee": {
             "regex_patterns": {
-                "match": r"(Verwaltungsgeb\u00fchr)",
-                "amount": r"Verrechneter\s+Betrag:\s+Valuta\s+\d{2}\.\d{2}\.\d{4}\s+CHF\s+([\d'.,-]+)",
-                "currency": r"Verrechneter\s+Betrag:\s+Valuta\s+\d{2}\.\d{2}\.\d{4}\s+(CHF)",
-                "transaction_date": r"Am\s*(\d{2}\.\d{2}\.\d{4})\s*haben wir"
+                "match": r"(Verwaltungsgeb\u00fchr|Rückerstattung Produktkosten|Produktkosten|Gebühr für Portfolio|Stiftungsgebühr|Beratergebühr)",
+                "amount": r"Total.*?CHF\s*([\d'.,-]+)",
+                "currency": r"Total.*?(CHF)",
+                "transaction_date": r"(?:Valuta|V\s*aluta)\s*(\d{2}\.\d{2}\.\d{4})",
             },
-            "fields": lambda tx, self: {
-                **LibertyBrokerConfig.common_fields(tx, self),
+            "fields": lambda tx, portfolio_number, holding_map: {
+                **LibertyBrokerConfig.common_fields(tx, portfolio_number, holding_map),
                 "type": "cost",
                 "originalcurrency": "CHF",
-                "total_amount": tx.get("amount", "")
+                "currency": "CHF",
+                "fee": format_number_for_reading(tx.get("amount", "")),
+                "tax": "0",
+                "total_amount": tx.get("amount", ""),
             },
-            "process_function": process_fees
-        }
+            "process_function": process_fees,
+        },
     }
 
     IDENTIFIERS = [
         "Liberty Vorsorge AG",
         "Liberty 3a Vorsorgestiftung",
-        "Liberty Foundation for 3a"
+        "Liberty Foundation for 3a",
     ]
 
     PORTFOLIO_NUMBER_PATTERN = r"Portfolio\s*(?:Nr\.)?\s*([\d\.\-]+)"
+
 
 class LibertyBroker(BaseBroker):
     def __init__(self, config_path="config.json"):
@@ -179,13 +190,32 @@ class LibertyBroker(BaseBroker):
 
     def _parse_transactions(self, pdf_content):
         transactions = []
+
+        # Debug: Show raw PDF content for each page
+        for page_idx, page_text in enumerate(pdf_content):
+            logging.debug(f"\n=== RAW PDF CONTENT PAGE {page_idx + 1} ===")
+            logging.debug(page_text[:1000])  # Show first 1000 characters
+            logging.debug(f"=== END PAGE {page_idx + 1} ===\n")
+
         for page_text in pdf_content:
             for category_name, definition in self.data_definitions.items():
                 match_pattern = definition["regex_patterns"].get("match")
                 if match_pattern and re.search(match_pattern, page_text, re.IGNORECASE):
+                    logging.debug(f"Found {category_name} pattern in PDF content!")
+
+                    # Debug: Show the specific text around the match
+                    match = re.search(match_pattern, page_text, re.IGNORECASE)
+                    if match:
+                        start = max(0, match.start() - 100)
+                        end = min(len(page_text), match.end() + 100)
+                        logging.debug(
+                            f"Context around match: ...{page_text[start:end]}..."
+                        )
+
                     transaction = self._extract_category_fields(page_text, definition)
                     if transaction:
                         transaction["category"] = category_name
+                        logging.debug(f"Extracted fields: {transaction}")
                         transactions.append(transaction)
         return transactions
 
@@ -196,31 +226,66 @@ class LibertyBroker(BaseBroker):
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 transaction[field_name] = match.group(1)
-                logging.debug(f"Field '{field_name}' matched with value: {transaction[field_name]}")
+                logging.debug(
+                    f"Field '{field_name}' matched with value: {transaction[field_name]}"
+                )
         return transaction
 
     def _process_categories(self, transactions):
         results = {}
         for category_name, definition in self.data_definitions.items():
-            category_transactions = [tx for tx in transactions if tx.get("category") == category_name]
-            process_function = definition.get("process_function")
-            if process_function:
-                normalized_transactions = self._normalize_transactions(category_transactions, definition)
-                results[category_name] = process_function(normalized_transactions)
+            category_transactions = [
+                tx for tx in transactions if tx.get("category") == category_name
+            ]
+            if category_transactions:  # Only process if transactions exist
+                process_function = definition.get("process_function")
+                if process_function:
+                    normalized_transactions = self._normalize_transactions(
+                        category_transactions, definition
+                    )
+                    results[category_name] = process_function(normalized_transactions)
+
+        # Add explicit fee processing to the return if not already included
+        if "fee" in results:
+            results["fees"] = results.pop("fee")
+
         return results
 
     def _normalize_transactions(self, transactions, category_definition):
         normalized = []
         fields_mapping = category_definition.get("fields")
         for transaction in transactions:
-            normalized_tx = fields_mapping(transaction, self.portfolio_number, self.holding_map)
+            normalized_tx = fields_mapping(
+                transaction, self.portfolio_number, self.holding_map
+            )
+
+            # Clean numeric fields for fee transactions
+            if transaction.get("category") == "fee":
+                for numeric_field in ["total_amount", "fee", "tax"]:
+                    if numeric_field in normalized_tx and normalized_tx[numeric_field]:
+                        try:
+                            if isinstance(normalized_tx[numeric_field], str):
+                                cleaned_value = (
+                                    normalized_tx[numeric_field]
+                                    .replace("'", "")
+                                    .replace(",", ".")
+                                )
+                                normalized_tx[numeric_field] = float(cleaned_value)
+                        except ValueError:
+                            logging.error(
+                                f"Failed to normalize field {numeric_field} with value {normalized_tx[numeric_field]} in transaction: {normalized_tx}"
+                            )
+                            normalized_tx[numeric_field] = None
+
             normalized.append(normalized_tx)
         return normalized
 
     def move_and_rename_file(self, file_path, transactions):
         prefix = f"{LibertyBrokerConfig.BROKER_NAME.replace(' ', '_').lower()}-{self.portfolio_number}"
         try:
-            new_path = move_file_with_conflict_resolution(file_path, LibertyBrokerConfig.TARGET_DIRECTORY, prefix, transactions)
+            new_path = move_file_with_conflict_resolution(
+                file_path, LibertyBrokerConfig.TARGET_DIRECTORY, prefix, transactions
+            )
             logging.info(f"File successfully moved and renamed to: {new_path}")
         except Exception as e:
             logging.error(f"Error moving and renaming file: {e}")

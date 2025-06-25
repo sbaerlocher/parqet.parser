@@ -1,6 +1,7 @@
+import csv
 import logging
 import os
-import csv
+
 
 def write_to_csv(output_dir, file_prefix, data):
     """
@@ -14,7 +15,9 @@ def write_to_csv(output_dir, file_prefix, data):
     logger.info(f"Starting to write data for {file_prefix}.")
 
     os.makedirs(output_dir, exist_ok=True)
-    file_path = os.path.join(output_dir, f"{file_prefix.replace('.', '_').replace('-', '_')}.csv")
+    file_path = os.path.join(
+        output_dir, f"{file_prefix.replace('.', '_').replace('-', '_')}.csv"
+    )
 
     existing_data = []
     if os.path.exists(file_path):
@@ -32,9 +35,9 @@ def write_to_csv(output_dir, file_prefix, data):
         match_found = False
         for existing_entry in existing_data:
             if (
-                existing_entry.get("datetime") == new_entry.get("datetime") and
-                existing_entry.get("identifier") == new_entry.get("identifier") and
-                existing_entry.get("amount") == new_entry.get("amount")
+                existing_entry.get("datetime") == new_entry.get("datetime")
+                and existing_entry.get("identifier") == new_entry.get("identifier")
+                and existing_entry.get("amount") == new_entry.get("amount")
             ):
                 combined_data.append(new_entry)  # Replace existing entry with new
                 match_found = True
@@ -42,9 +45,13 @@ def write_to_csv(output_dir, file_prefix, data):
         if not match_found:
             combined_data.append(new_entry)
 
-    combined_data.extend([entry for entry in existing_data if entry not in combined_data])
+    combined_data.extend(
+        [entry for entry in existing_data if entry not in combined_data]
+    )
 
-    sorted_data = sorted(combined_data, key=lambda x: x.get("datetime", ""), reverse=True)
+    sorted_data = sorted(
+        combined_data, key=lambda x: x.get("datetime", ""), reverse=True
+    )
 
     try:
         with open(file_path, mode="w", encoding="utf-8", newline="") as file:

@@ -1,6 +1,8 @@
 import logging
-import pdfplumber
 import re
+
+import pdfplumber
+
 
 # PDF Utilities
 def validate_pdf(file_path, identifier=None):
@@ -20,6 +22,7 @@ def validate_pdf(file_path, identifier=None):
 
     return True
 
+
 def check_identifier_in_pdf(file_path, identifier):
     """
     Checks if a specific identifier exists in the PDF content.
@@ -35,10 +38,13 @@ def check_identifier_in_pdf(file_path, identifier):
         for page in pdf_content:
             if any(id_text in page for id_text in identifier):
                 return True
-        logging.debug(f"None of the identifiers {identifier} were found in {file_path}.")
+        logging.debug(
+            f"None of the identifiers {identifier} were found in {file_path}."
+        )
     except Exception as e:
         logging.error(f"Error validating PDF content: {e}")
     return False
+
 
 def get_pdf_content(file_path, cache=None):
     """
@@ -61,6 +67,7 @@ def get_pdf_content(file_path, cache=None):
         logging.error(f"Error extracting PDF content: {e}")
         return []
 
+
 def extract_portfolio_number(pdf_content, regex_pattern):
     """
     Extracts a portfolio number from PDF content using a regex pattern.
@@ -72,7 +79,7 @@ def extract_portfolio_number(pdf_content, regex_pattern):
     for page_text in pdf_content:
         match = re.search(regex_pattern, page_text)
         if match:
-            portfolio_number = match.group(1).replace(' ', '')
+            portfolio_number = match.group(1).replace(" ", "")
             logging.debug(f"Extracted portfolio number: {portfolio_number}")
             return portfolio_number
     logging.debug("No portfolio number found in PDF content.")
