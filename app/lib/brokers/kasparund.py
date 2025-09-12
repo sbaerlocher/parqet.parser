@@ -121,20 +121,25 @@ class KasparundBrokerConfig:
         },
         "dividend": {
             "regex_patterns": {
-                "match": r"(Dividendenausschüttung|Rückerstattung Quellensteuer)",
-                "total_amount": r"Gutgeschriebener Betrag:\s*Valuta\s*\d{2}\.\d{2}\.\d{4}\s*CHF\s*([\d'.,-]+)",
-                "currency": r"Gutgeschriebener Betrag:\s*Valuta\s*\d{2}\.\d{2}\.\d{4}\s*([A-Z]{3})",
-                "share_count": r"Anzahl:\s*(-?[\d.,]+)",
-                "transaction_date": r"Valuta:\s*(\d{2}\.\d{2}\.\d{4})",
-                "isin_code": r"ISIN:\s*([A-Z0-9]+)",
+                "match": r"Typ:\s*(Corporate Action)",
+                "total_amount": r"Dividenden:\s*Valuta:\s*CHF\s*([\d'.,-]+)",
+                "currency": r"Dividenden:\s*Valuta:\s*(CHF)",
+                "share_count": r"Anzahl:\s*CHF\s*([\d'.,-]+)",
+                "transaction_date": r"Dividenden:\s*Valuta:\s*CHF\s*[\d'.,-]+\s*(\d{2}\.\d{2}\.\d{4})",
+                "isin_code": r"Kurs:\s*([A-Z0-9]+)",
+                "tax": r"Quellensteuer:\s*Valuta:\s*CHF\s*(-?[\d'.,-]+)",
             },
             "fields": lambda tx, portfolio_number, holding_map: {
                 **KasparundBrokerConfig.common_fields(
                     tx, portfolio_number, holding_map
                 ),
                 "type": "Dividend",
-                "originalcurrency": "CHF",
+                "originalcurrency": tx.get("currency", "CHF"),
+                "currency": tx.get("currency", "CHF"),
                 "total_amount": tx.get("total_amount", ""),
+                "isin_code": tx.get("isin_code", ""),
+                "share_count": "1",
+                "tax": tx.get("tax", ""),
             },
             "process_function": process_dividends,
         },
