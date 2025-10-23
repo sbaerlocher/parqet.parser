@@ -1,42 +1,111 @@
 ---
+# Docker Compose file for Parqet Parser
+# Note: 'version' is obsolete in Compose v2, so it's removed
+
 services:
-    parser:
-        build:
-            context: .
-            args:
-                DDE_UID: ${DDE_UID:-1000}
-                DDE_GID: ${DDE_GID:-1000}
-            target: python-env
-        working_dir: ${PWD}
-        environment:
-            - PROJECT_DIR=${PWD}
-        volumes:
-            - ${PWD}/data:${PWD}/data
-            - ${PWD}/app:${PWD}
-            - ${PWD}/output:${PWD}/output
-        networks:
-            - default
-        security_opt:
-            - no-new-privileges:true
-        healthcheck:
-            test: ['CMD-SHELL', 'pgrep runsvdir || exit 1']
-            interval: 30s
-            timeout: 10s
-            retries: 3
-        cap_add:
-            - SETGID
-            - SETPCAP
-            - SETUID
-            - CAP_CHOWN
-            - SYS_ADMIN
-        cap_drop:
-            - ALL
+  parser:
+    build:
+      context: .
+      args:
+        DDE_UID: ${DDE_UID:-1000}
+        DDE_GID: ${DDE_GID:-1000}
+      target: python-env
+    container_name: parqet-parser
+    working_dir: /app
+    environment:
+      # Parqet Parser Configuration
+      - PARQET_DATA_DIR=/app/data
+      - PARQET_OUTPUT_DIR=/app/output
+      - PARQET_LOG_DIR=/app/logs
+      - PARQET_CONFIG_FILE=/app/config.json
+      - PARQET_TIMEZONE=${PARQET_TIMEZONE:-Europe/Zurich}
+      - PARQET_LOG_LEVEL=${PARQET_LOG_LEVEL:-INFO}
+      - PARQET_LOG_TO_CONSOLE=true
+      # Python
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount local directories for input/output
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./logs:/app/logs
+      # Mount config file (create it first!)
+      - ./config.json:/app/config.json:ro
+      # Optional: Mount code for development
+      # - ./app:/app/app
+      # - ./tests:/app/tests
+    networks:
+      - parqet-network
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ['CMD-SHELL', 'python -c "import sys; sys.exit(0)" || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    # No restart policy - run once and exit
+    restart: "no"
+    # Run once and exit (for batch processing)
+    command: python -m app.main
+
+  # Optional: Development container with shell access
+  parser-dev:
+    build:
+      context: .
+      args:
+        DDE_UID: ${DDE_UID:-1000}
+        DDE_GID: ${DDE_GID:-1000}
+      target: python-env
+    container_name: parqet-parser-dev
+    working_dir: /app
+    environment:
+      - PARQET_DATA_DIR=/app/data
+      - PARQET_OUTPUT_DIR=/app/output
+      - PARQET_LOG_DIR=/app/logs
+      - PARQET_CONFIG_FILE=/app/config.json
+      - PARQET_TIMEZONE=${PARQET_TIMEZONE:-Europe/Zurich}
+      - PARQET_LOG_LEVEL=DEBUG
+      - PARQET_LOG_TO_CONSOLE=true
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - ./config.json:/app/config.json:ro
+      # Mount code for live development
+      - ./app:/app/app
+      - ./tests:/app/tests
+      - ./requirements.txt:/app/requirements.txt
+    networks:
+      - parqet-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+    profiles:
+      - dev
 
 networks:
-    default:
-        name: dde
-        external: true
+  parqet-network:
+    driver: bridge
+    name: parqet-network
 
-volumes:
-    config_volume:
-        driver: local
+  # Optional: Connect to external DDE network
+  dde:
+    external: true
+    name: dde

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Any
 
 
 class BaseBroker(ABC):
@@ -8,7 +9,7 @@ class BaseBroker(ABC):
     """
 
     @abstractmethod
-    def detect(self, file_path, file_content=None):
+    def detect(self, file_path: str, file_content: Optional[str] = None) -> bool:
         """
         Erkennt, ob eine Datei zu diesem Broker gehört.
         :param file_path: Pfad zur Eingabedatei.
@@ -18,37 +19,41 @@ class BaseBroker(ABC):
         pass
 
     @abstractmethod
-    def extract_transactions(self, file_path):
+    def extract_transactions(self, file_path: str) -> Dict[str, List[Dict[str, Any]]]:
         """
         Extrahiert Transaktionen aus der Broker-Datei.
         :param file_path: Pfad zur Eingabedatei.
-        :return: Liste von Transaktionen als Dictionaries.
+        :return: Dictionary von Transaktionen kategorisiert nach Typ.
         """
         pass
 
     @abstractmethod
-    def process_transactions(self, transactions, file_path=None):
+    def process_transactions(
+        self, transactions: Dict[str, List[Dict[str, Any]]], file_path: Optional[str] = None
+    ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Verarbeitet die extrahierten Transaktionen und sortiert sie in Kategorien.
-        :param transactions: Liste von Transaktionen als Dictionaries.
+        :param transactions: Dictionary von Transaktionen als Dictionaries.
         :param file_path: Optionaler Pfad zur Ursprungsdatei (z. B. für Logging oder Fehlerberichte).
         :return: Verarbeitete Daten nach Kategorien.
         """
         pass
 
-    def move_and_rename_file(self, file_path, transactions):
+    def move_and_rename_file(
+        self, file_path: str, transactions: Dict[str, List[Dict[str, Any]]]
+    ) -> None:
         """
         Standardimplementierung: Verschiebt und benennt die Datei um, basierend auf den extrahierten Transaktionen.
         Diese Methode kann von Unterklassen überschrieben werden.
 
         :param file_path: Pfad zur Eingabedatei.
-        :param transactions: Liste der extrahierten Transaktionen zur Generierung des Zielpfads.
+        :param transactions: Dictionary der extrahierten Transaktionen zur Generierung des Zielpfads.
         :return: None
         """
         pass
 
     @abstractmethod
-    def generate_output_file(self, category, file_path):
+    def generate_output_file(self, category: str, file_path: str) -> str:
         """
         Generiert den Namen der Ausgabedatei basierend auf der Kategorie und dem Ursprungsdateipfad.
         :param category: Kategorie der Daten (z. B. "deposits").

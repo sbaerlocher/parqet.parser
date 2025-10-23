@@ -2,15 +2,22 @@ import json
 import logging
 import os
 import re
+from pathlib import Path
+from typing import Dict, Union
+
+from app.lib.common.env_config import Config
 
 
-def load_holding_map(config_path):
+def load_holding_map(config_path: Union[str, Path, None] = None) -> Dict[str, str]:
     """
     Loads the configuration file containing IBAN-to-holding mappings.
 
-    :param config_path: Path to the JSON configuration file.
+    :param config_path: Path to the JSON configuration file. If None, uses default from Config.
     :return: Dictionary with mappings, cleaned of keys containing '.' or '-'.
     """
+    if config_path is None:
+        config_path = Config.CONFIG_FILE
+
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
 

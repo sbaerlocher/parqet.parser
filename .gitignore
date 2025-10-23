@@ -204,11 +204,16 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-### Additional ###
+### Additional - Parqet Parser ###
 # Ignore CSV, PDF, and JSON files
 *.csv
 *.pdf
 *config.json
+
+# Project directories
+data/
+output/
+logs/
 
 megalinter-reports/*
 

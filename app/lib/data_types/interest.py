@@ -1,6 +1,6 @@
 import logging
 
-from lib.common.utilities import (
+from app.lib.common.utilities import (
     convert_datetime_to_timezone,
     datetime_to_iso,
     format_number_for_reading,

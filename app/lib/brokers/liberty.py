@@ -3,8 +3,8 @@ import os
 import re
 from datetime import datetime
 
-from lib.brokers.base_broker import BaseBroker
-from lib.common.utilities import (
+from app.lib.brokers.base_broker import BaseBroker
+from app.lib.common.utilities import (
     clean_string,
     format_number_for_reading,
     get_pdf_content,
@@ -13,11 +13,11 @@ from lib.common.utilities import (
     process_datetime_to_utc,
     validate_pdf,
 )
-from lib.data_types.deposits_withdrawals import process_deposits_withdrawals
-from lib.data_types.dividends import process_dividends
-from lib.data_types.fees import process_fees  # Added fees processor
-from lib.data_types.interest import process_interest
-from lib.data_types.trades import process_trades
+from app.lib.data_types.deposits_withdrawals import process_deposits_withdrawals
+from app.lib.data_types.dividends import process_dividends
+from app.lib.data_types.fees import process_fees  # Added fees processor
+from app.lib.data_types.interest import process_interest
+from app.lib.data_types.trades import process_trades
 
 
 # Configuration for Liberty Broker
@@ -175,7 +175,8 @@ class LibertyBroker(BaseBroker):
     def process_transactions(self, data: dict, file_path: str = None) -> dict:
         transactions = data.get("transactions", [])
         if not transactions:
-            raise ValueError("No transactions to process.")
+            logging.warning(f"No transactions found in {file_path or 'file'}")
+            return {}
         return self._process_categories(transactions)
 
     def _extract_portfolio_number(self, pdf_content):

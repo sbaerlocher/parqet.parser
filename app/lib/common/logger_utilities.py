@@ -1,19 +1,21 @@
 import logging
 import os
 
+from app.lib.common.env_config import Config
+
 
 def create_log_directory():
     """
     Ensures that the log directory exists.
     """
-    os.makedirs("logs", exist_ok=True)
+    Config.ensure_directories()
 
 
 def get_log_level():
     """
-    Retrieves the log level from environment variables or defaults to DEBUG.
+    Retrieves the log level from environment variables or defaults to INFO.
     """
-    return os.getenv("LOG_LEVEL", "DEBUG").upper()
+    return Config.LOG_LEVEL.upper()
 
 
 def get_log_format():
@@ -74,9 +76,9 @@ def configure_logging():
     formatter = logging.Formatter(log_format)
 
     # Define log file paths
-    general_log_file = os.getenv("GENERAL_LOG_FILE", "logs/general.log")
-    error_log_file = os.getenv("ERROR_LOG_FILE", "logs/error.log")
-    debug_log_file = os.getenv("DEBUG_LOG_FILE", "logs/debug.log")
+    general_log_file = str(Config.get_log_file("general"))
+    error_log_file = str(Config.get_log_file("error"))
+    debug_log_file = str(Config.get_log_file("debug"))
 
     # Configure handlers
     general_handler = configure_file_handler(general_log_file, logging.INFO, formatter)

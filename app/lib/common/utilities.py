@@ -1,7 +1,7 @@
 import logging
 import os
 
-from lib.common.config_utilities import (
+from app.lib.common.config_utilities import (
     calculate_price,
     clean_string,
     format_number,
@@ -9,14 +9,14 @@ from lib.common.config_utilities import (
     load_holding_map,
     standardize_number,
 )
-from lib.common.csv_utilities import write_to_csv
-from lib.common.datetime_utilities import (
+from app.lib.common.csv_utilities import write_to_csv
+from app.lib.common.datetime_utilities import (
     convert_datetime_to_timezone,
     datetime_to_iso,
     process_datetime_to_utc,
 )
-from lib.common.file_operations import move_file_with_conflict_resolution
-from lib.common.pdf_utilities import (
+from app.lib.common.file_operations import move_file_with_conflict_resolution
+from app.lib.common.pdf_utilities import (
     check_identifier_in_pdf,
     extract_portfolio_number,
     get_pdf_content,

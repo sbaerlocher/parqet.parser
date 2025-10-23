@@ -1,6 +1,6 @@
 import logging
 
-from lib.common.utilities import (
+from app.lib.common.utilities import (
     calculate_price,
     format_number_for_reading,
     process_datetime_to_utc,

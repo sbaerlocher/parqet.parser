@@ -7,16 +7,16 @@ from datetime import datetime
 import pandas as pd
 from pytz import timezone
 
-from lib.brokers.base_broker import BaseBroker
-from lib.common.utilities import (
+from app.lib.brokers.base_broker import BaseBroker
+from app.lib.common.utilities import (
     clean_string,
     convert_datetime_to_timezone,
     load_holding_map,
     move_file_with_conflict_resolution,
     process_datetime_to_utc,
 )
-from lib.data_types.deposits_withdrawals import process_deposits_withdrawals
-from lib.data_types.interest import process_interest
+from app.lib.data_types.deposits_withdrawals import process_deposits_withdrawals
+from app.lib.data_types.interest import process_interest
 
 
 class N26BrokerConfig:
