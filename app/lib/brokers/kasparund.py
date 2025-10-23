@@ -1,15 +1,11 @@
 import logging
-import os
 import re
-import shutil
 from datetime import datetime
 
-import pandas as pd
-
 from lib.brokers.base_broker import BaseBroker
-from lib.common.utilities import format_number_for_reading  # Added for fee processing
 from lib.common.utilities import (
     clean_string,
+    format_number_for_reading,  # Added for fee processing
     get_pdf_content,
     load_holding_map,
     move_file_with_conflict_resolution,
@@ -58,7 +54,7 @@ class KasparundBrokerConfig:
     DATA_DEFINITIONS = {
         "deposits_withdrawals": {
             "regex_patterns": {
-                "match": r"Typ:\s*(Kontoübertrag|Wechselgeld|Übertrag von Anlagen)",
+                "match": r"Typ:\s*(Kontoübertrag|Wechselgeld|Übertrag von Anlagen|Übertrag)",
                 "amount": r"Verrechneter Betrag:\s*CHF\s*([\d'.,]+)",
                 "currency": r"Verrechneter Betrag:\s*([A-Z]{3})",
                 "transaction_date": r"Valuta:\s*(\d{2}\.\d{2}\.\d{4})",
